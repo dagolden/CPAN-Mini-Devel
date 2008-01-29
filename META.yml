@@ -1,0 +1,29 @@
+---
+name: CPAN-Mini-Devel
+version: 0.01
+author:
+  - 'David A. Golden <dagolden@cpan.org>'
+abstract: Create CPAN::Mini mirror with developer releases
+license: apache
+resources:
+  license: http://apache.org/licenses/LICENSE-2.0
+  repository: http://dagolden.googlecode.com/svn/
+requires:
+  CPAN: 1.92
+  CPAN::Mini: 0.566
+  CPAN::Tarzip: 0
+  File::Spec: 3.27
+  File::Temp: 0.2
+  perl: 5.006
+provides:
+  CPAN::Mini::Devel:
+    file: lib/CPAN/Mini/Devel.pm
+    version: 0.01
+generated_by: Module::Build version 0.280801
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2
+no_index:
+  directory:
+    - examples
+    - inc
