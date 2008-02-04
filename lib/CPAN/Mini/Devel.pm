@@ -87,14 +87,14 @@ sub update_mirror {
                 module  => $pretty_id,
                 path    => $pretty_id,
             });
-        $self->trace("authors/id/$pretty_id\n");
-#        $self->mirror_file("authors/id/$pretty_id", 1);
+#        $self->trace("authors/id/$pretty_id\n");
+        $self->mirror_file("authors/id/$pretty_id", 1);
     };
 
     $self->_install_indices;
 
     # eliminate files we don't need
-#    $self->clean_unmirrored unless $self->{skip_cleanup};
+    $self->clean_unmirrored unless $self->{skip_cleanup};
     return $self->{changes_made};
 }
 
@@ -123,6 +123,7 @@ my %months = (
 );
 
 # standard regexes
+# note on archive suffixes -- .pm.gz shows up in 02packagesf
 my %re = (
     perls => qr{(?:
 		  /(?:emb|syb|bio)?perl-\d 
@@ -130,19 +131,21 @@ my %re = (
 		| /perl-?5\.004 
 		| /perl_mlb\.zip 
     )}xi,
-    archive => qr{\.(?:tar\.(?:bz2|gz|Z)|t(?:gz|bz)|zip)$}i,
+    archive => qr{\.(?:tar\.(?:bz2|gz|Z)|t(?:gz|bz)|zip|pm.gz)$}i,
     target_dir => qr{
         ^(?:
+            modules/by-module/[^/]+/./../ | 
             modules/by-module/[^/]+/ | 
-            modules/by-category/[^/]+/ | 
-            authors/id/./../
+            modules/by-category/[^/]+/[^/]+/./../ | 
+            modules/by-category/[^/]+/[^/]+/ | 
+            authors/id/./../ 
         )
     }x,
     leading_initials => qr{(.)/\1./},
 );
 
 # match version and suffix
-$re{version_suffix} = qr{([-._]v?[0-9].*)($re{archive})};
+$re{version_suffix} = qr{([-._]v?[0-9].*)?($re{archive})};
 
 # split into "AUTHOR/Name" and "Version"
 $re{split_them} = qr{^(.+?)$re{version_suffix}$};
@@ -153,7 +156,8 @@ $re{split_them} = qr{^(.+?)$re{version_suffix}$};
 # Just get AUTHOR/tarball.suffix from whatever file name is passed in
 sub _get_base_id { 
     my $file = shift;
-    my ($base_id) = $file =~ m{([^/]+/[^/]+)$};
+    my $base_id = $file;
+    $base_id =~ s{$re{target_dir}}{};
     return $base_id;
 }
 
@@ -197,7 +201,7 @@ sub _parse_module_index {
                 path    => $path,
             });
         
-        my $base_id = _get_base_id($path);
+        my $base_id = _get_base_id("authors/id/$path");
         $valid_distros{$base_id}++;
         my $base_name = _base_name( $base_id );
         if ($base_name) {
@@ -247,8 +251,12 @@ sub _parse_module_index {
         # assumption of 0
         if ( $valid_distros{$base_id} ) {
             $mirror{$base_id} = $stat{datetime};
-            if ( $base_name ) {
-                $latest{$base_name}{datetime} = $stat{datetime};
+            next unless $base_name;
+            if ( $stat{datetime} > $latest{$base_name}{datetime} ) {
+                $latest{$base_name} = { 
+                    datetime => $stat{datetime}, 
+                    base_id => $base_id
+                };
             }
         }
         # if not in the packages file, we only want it if it resembles 
@@ -326,6 +334,12 @@ non-developer release in the mirror. For example, if Foo-Bar-0.01,
 Foo-Bar-0.02, Foo-Bar-0.03_01 and Foo-Bar-0.03_02 are on CPAN, only
 Foo-Bar-0.02 and Foo-Bar 0.03_02 will be mirrored. This is particularly useful
 for creating a local mirror for smoke testing.
+
+Unauthorized releases will also be included if they resemble a distribution
+name already in the normal CPAN packages list.
+
+There may be errors retrieving very new modules if they are indexed but not
+yet synchronized on the mirror.
 
 CPAN::Mini::Devel also mirrors the {indices/find-ls.gz} file, which is used
 to identify developer releases.
