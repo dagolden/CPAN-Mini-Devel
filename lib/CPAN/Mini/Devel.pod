@@ -26,6 +26,12 @@ Foo-Bar-0.02, Foo-Bar-0.03_01 and Foo-Bar-0.03_02 are on CPAN, only
 Foo-Bar-0.02 and Foo-Bar 0.03_02 will be mirrored. This is particularly useful
 for creating a local mirror for smoke testing.
 
+Unauthorized releases will also be included if they resemble a distribution
+name already in the normal CPAN packages list.
+
+There may be errors retrieving very new modules if they are indexed but not
+yet synchronized on the mirror.
+
 CPAN::Mini::Devel also mirrors the C<<< indices/find-ls.gz >>> file, which is used
 to identify developer releases.
 
