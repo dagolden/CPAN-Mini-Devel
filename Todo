@@ -7,6 +7,9 @@ TODO list for Perl module CPAN::Mini::Devel
 - look at DDS (2.08-40) -- have to deal with things that do odd stuff
   at the end for a filename
 
+- look into CPAN::DistnameInfo -- once I get a base_id, can easily back
+  into "authors/id/X/XX/$base_id" and let DistnameInfo do some work
+
 #--------------------------------------------------------------------------#
 # Features
 #--------------------------------------------------------------------------#

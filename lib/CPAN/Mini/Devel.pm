@@ -13,6 +13,7 @@ use CPAN::HandleConfig;
 use File::Temp 0.20;
 use File::Spec;
 use File::Path ();
+use File::Basename qw/basename/;
 
 our @ISA = 'CPAN::Mini';
 
@@ -70,12 +71,17 @@ sub update_mirror {
     $self->_mirror_extras;
 
     ## CPAN::Mini::Devel addition using find-ls.gz
-    my $local_index =  File::Spec->catfile(
+    my $file_ls =  File::Spec->catfile(
         $self->{scratch},
         qw(indices find-ls.gz)
     );
-    $self->trace("Scanning find-ls.gz...\n");
-    for my $base_id ( @{ _parse_module_index( $local_index ) } ) {
+
+    my $packages = File::Spec->catfile(
+        $self->{scratch},
+        qw(modules 02packages.details.txt.gz)
+    );
+    
+    for my $base_id ( @{ $self->_parse_module_index( $packages, $file_ls ) } ) {
         (my $pretty_id = $base_id) =~ s{^(((.).).+)$}{$3/$2/$1};
         next if $self->_filter_module({
                 module  => $pretty_id,
@@ -85,40 +91,10 @@ sub update_mirror {
 #        $self->mirror_file("authors/id/$pretty_id", 1);
     };
 
-    
-    ## Continue with the rest, will pick up any odd distributions
-    ## that were successfully indexed but looked weird in find-ls.gz
-
-    # now walk the packages list
-    my $details = File::Spec->catfile(
-        $self->{scratch},
-        qw(modules 02packages.details.txt.gz)
-    );
-
-    my $gz = Compress::Zlib::gzopen($details, "rb")
-        or die "Cannot open details: $Compress::Zlib::gzerrno";
-
-    my $inheader = 1;
-    while ($gz->gzreadline($_) > 0) {
-        if ($inheader) {
-            $inheader = 0 unless /\S/;
-            next;
-        }
-
-        my ($module, $version, $path) = split;
-        next if $self->_filter_module({
-                module  => $module,
-                version => $version,
-                path    => $path,
-            });
-
-        $self->mirror_file("authors/id/$path", 1);
-    }
-
     $self->_install_indices;
 
     # eliminate files we don't need
-    $self->clean_unmirrored unless $self->{skip_cleanup};
+#    $self->clean_unmirrored unless $self->{skip_cleanup};
     return $self->{changes_made};
 }
 
@@ -148,7 +124,12 @@ my %months = (
 
 # standard regexes
 my %re = (
-    perls => qr{[^/]+/(?:perl|parrot|kurila|ponie|Perl6-Pugs)-?\d},
+    perls => qr{(?:
+		  /(?:emb|syb|bio)?perl-\d 
+		| /(?:parrot|ponie|kurila|Perl6-Pugs)-\d 
+		| /perl-?5\.004 
+		| /perl_mlb\.zip 
+    )}xi,
     archive => qr{\.(?:tar\.(?:bz2|gz|Z)|t(?:gz|bz)|zip)$}i,
     target_dir => qr{
         ^(?:
@@ -157,13 +138,31 @@ my %re = (
             authors/id/./../
         )
     }x,
+    leading_initials => qr{(.)/\1./},
 );
 
-# split into "AUTHOR/Name" and "Version"
-$re{split_them} = qr{^(.+)-([^-]+)$re{archive}$};
+# match version and suffix
+$re{version_suffix} = qr{([-._]v?[0-9].*)($re{archive})};
 
-# matches "AUTHOR/tarbal.suffix" and not "AUTHOR/subdir/whatever"
-$re{get_base_id} = qr{$re{target_dir}([^/]+/[^/]+)$};
+# split into "AUTHOR/Name" and "Version"
+$re{split_them} = qr{^(.+?)$re{version_suffix}$};
+
+# matches "AUTHOR/tarball.suffix" or AUTHOR/modules/tarball.suffix
+# and not other "AUTHOR/subdir/whatever"
+
+# Just get AUTHOR/tarball.suffix from whatever file name is passed in
+sub _get_base_id { 
+    my $file = shift;
+    my ($base_id) = $file =~ m{([^/]+/[^/]+)$};
+    return $base_id;
+}
+
+sub _base_name {
+    my ($base_id) = @_;
+    my $base_file = basename $base_id;
+    my ($base_name, $base_version) = $base_file =~ $re{split_them};
+    return $base_name;
+}
 
 #--------------------------------------------------------------------------#
 # _parse_module_index
@@ -172,19 +171,63 @@ $re{get_base_id} = qr{$re{target_dir}([^/]+/[^/]+)$};
 #--------------------------------------------------------------------------#-
 
 sub _parse_module_index {
-    my ($filename) = @_;
+    my ($self, $packages, $file_ls ) = @_;
 
+	# first walk the packages list
+    # and build an index
+
+    my (%valid_bases, %valid_distros, %mirror);
+    my (%latest, %latest_dev);
+
+    my $gz = Compress::Zlib::gzopen($packages, "rb")
+        or die "Cannot open package list: $Compress::Zlib::gzerrno";
+
+    $self->trace( "Scanning 02packages.details ...\n" );
+    my $inheader = 1;
+    while ($gz->gzreadline($_) > 0) {
+        if ($inheader) {
+            $inheader = 0 unless /\S/;
+            next;
+        }
+
+        my ($module, $version, $path) = split;
+        next if $self->_filter_module({
+                module  => $module,
+                version => $version,
+                path    => $path,
+            });
+        
+        my $base_id = _get_base_id($path);
+        $valid_distros{$base_id}++;
+        my $base_name = _base_name( $base_id );
+        if ($base_name) {
+            $latest{$base_name} = {
+                datetime => 0,
+                base_id => $base_id
+            };
+        }
+    }
+
+#    use DDS;
+#    $self->trace("Distros\n");
+#    Dump \%valid_distros;
+#    $self->trace("Bases\n");
+#    Dump \%valid_bases;
+
+    # next walk the find-ls file
     local *FH;
-    tie *FH, 'CPAN::Tarzip', $filename;
+    tie *FH, 'CPAN::Tarzip', $file_ls;
 
-    my %latest;
-    my %latest_dev;
-
+    $self->trace( "Scanning find-ls ...\n" );
     while ( defined ( my $line = <FH> ) ) {
         my %stat;
         @stat{qw/inode blocks perms links owner group size datetime name linkname/}
             = split q{ }, $line;
         
+        unless ($stat{name} && $stat{perms} && $stat{datetime}) {
+            $self->trace("Couldn't parse '$line' \n");
+            next;
+        }
         # skip directories, symlinks and things that aren't a tarball
         next if $stat{perms} eq "l" || substr($stat{perms},0,1) eq "d";
         next unless $stat{name} =~ $re{target_dir};
@@ -192,46 +235,62 @@ sub _parse_module_index {
 
         # skip if not AUTHOR/tarball 
         # skip perls
-        my ($base_id) = $stat{name} =~ $re{get_base_id};
+        my $base_id = _get_base_id($stat{name});
         next unless $base_id; 
+        
         next if $base_id =~ $re{perls};
 
-        # split into "AUTHOR/Name" and "Version"
-        # skip if doesn't dist doesn't have a proper version number
-        my ($base_dist, $base_version) = $base_id =~ $re{split_them};
-        next unless defined $base_dist && defined $base_version; 
+        my $base_name = _base_name( $base_id );
 
-        # record developer and regular releases separately
-        my $tracker = ( $base_version =~ m{_} ) ? \%latest_dev : \%latest;
+        # if $base_id matches 02packages, then it is the latest version
+        # and we definitely want it; also update datetime from the initial
+        # assumption of 0
+        if ( $valid_distros{$base_id} ) {
+            $mirror{$base_id} = $stat{datetime};
+            if ( $base_name ) {
+                $latest{$base_name}{datetime} = $stat{datetime};
+            }
+        }
+        # if not in the packages file, we only want it if it resembles 
+        # something in the package file and we only the most recent one
+        else {
+            # skip if couldn't parse out the name without version number
+            next unless defined $base_name;
 
-        $tracker->{$base_dist} ||= { datetime => 0 };
-        if ( $stat{datetime} > $tracker->{$base_dist}{datetime} ) {
-            $tracker->{$base_dist} = { 
-                datetime => $stat{datetime}, 
-                base_id => $base_id
-            };
+            # skip unless there's a matching base from the packages file
+            next unless $latest{$base_name};
+
+            # keep only the latest
+            $latest_dev{$base_name} ||= { datetime => 0 };
+            if ( $stat{datetime} > $latest_dev{$base_name}{datetime} ) {
+                $latest_dev{$base_name} = { 
+                    datetime => $stat{datetime}, 
+                    base_id => $base_id
+                };
+            }
         }
     }
 
-    # assemble from two sets keyed on base_dist (name) into one set 
-    # keyed on base_id (name-version.suffix)
-    
-    my %dists;
+    # pick up anything from packages that wasn't found find-ls
     for my $name ( keys %latest ) {
-        $dists{ $latest{$name}{base_id} } = $latest{$name}{datetime} 
+        my $base_id = $latest{$name}{base_id};
+        $mirror{$base_id} = $latest{$name}{datetime} unless $mirror{$base_id};
     }
-
+          
     # for dev versions, it must be newer than the latest version of
-    # the same base_dist
+    # the same base name from the packages file
 
     for my $name ( keys %latest_dev ) {
-        next if exists $latest{$name} && 
-            $latest{$name}{datetime} > $latest_dev{$name}{datetime};
-        $dists{ $latest_dev{$name}{base_id} } = $latest_dev{$name}{datetime} 
+        if ( ! $latest{$name} ) {
+            $self->trace( "Shouldn't be missing '$name' matching '$latest_dev{$name}{base_id}'\n" );
+            next;
+        }
+        next if $latest{$name}{datetime} > $latest_dev{$name}{datetime};
+        $mirror{ $latest_dev{$name}{base_id} } = $latest_dev{$name}{datetime} 
     }
 
-#    return [ sort { $dists{$b} <=> $dists{$a} } keys %dists ];
-    return [ sort keys %dists ];
+#    return [ sort { $mirror{$b} <=> $mirror{$a} } keys %mirror ];
+    return [ sort keys %mirror ];
 }
 
 1; #modules must return true
