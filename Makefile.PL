@@ -9,11 +9,15 @@ WriteMakefile
           'EXE_FILES' => [],
           'VERSION_FROM' => 'lib/CPAN/Mini/Devel.pm',
           'PREREQ_PM' => {
-                           'CPAN::Mini' => '0.566',
-                           'File::Temp' => '0.2',
                            'File::Spec' => '3.27',
                            'CPAN::Tarzip' => 0,
-                           'CPAN' => '1.92'
+                           'Test::More' => '0.62',
+                           'CPAN::Mini' => '0.567',
+                           'File::Temp' => '0.2',
+                           'File::Path' => 0,
+                           'CPAN' => '1.92',
+                           'File::Basename' => 0,
+                           'CPAN::HandleConfig' => 0
                          }
         )
 ;

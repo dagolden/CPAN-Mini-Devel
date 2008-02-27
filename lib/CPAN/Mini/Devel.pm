@@ -7,7 +7,7 @@ $VERSION = eval $VERSION; ## no critic
 
 use Config;
 use CPAN::Mini;
-use CPAN; 
+use CPAN (); 
 use CPAN::Tarzip;
 use CPAN::HandleConfig;
 use File::Temp 0.20;
@@ -36,39 +36,12 @@ sub _fixed_mirrors {
     return ($index_file, $self->SUPER::_fixed_mirrors);
 }
 
-sub mirror_indices {
-    my $self = shift;
-    File::Path::mkpath(File::Spec->catdir($self->{scratch}, 'indices'));
-    $self->SUPER::mirror_indices;
-}
-
-sub install_indices {
-    my $self = shift;
-    for my $dir (qw(indices)) {
-        my $needed = File::Spec->catdir($self->{local}, $dir);
-        File::Path::mkpath($needed, $self->{trace}, $self->{dirmode});
-        die "couldn't create $needed: $!" unless -d $needed;
-    }
-    $self->SUPER::install_indices
-}
-
 #--------------------------------------------------------------------------#
-# Extend update_mirror to add developer versions
+# Replace _get_mirror_list to add developer versions
 #--------------------------------------------------------------------------#
 
-sub update_mirror {
+sub _get_mirror_list {
 	my $self  = shift;
-	$self = $self->new(@_) unless ref $self;
-
-    $self->trace( "Using CPAN::Mini::Devel\n" );
-
-	# mirrored tracks the already done, keyed by filename
-	# 1 = local-checked, 2 = remote-mirrored
-	$self->mirror_indices;
-
-	return unless $self->{force} or $self->{changes_made};
-
-    $self->_mirror_extras;
 
     ## CPAN::Mini::Devel addition using find-ls.gz
     my $file_ls =  File::Spec->catfile(
@@ -81,21 +54,7 @@ sub update_mirror {
         qw(modules 02packages.details.txt.gz)
     );
     
-    for my $base_id ( @{ $self->_parse_module_index( $packages, $file_ls ) } ) {
-        (my $pretty_id = $base_id) =~ s{^(((.).).+)$}{$3/$2/$1};
-        next if $self->_filter_module({
-                module  => $pretty_id,
-                path    => $pretty_id,
-            });
-#        $self->trace("authors/id/$pretty_id\n");
-        $self->mirror_file("authors/id/$pretty_id", 1);
-    };
-
-    $self->_install_indices;
-
-    # eliminate files we don't need
-    $self->clean_unmirrored unless $self->{skip_cleanup};
-    return $self->{changes_made};
+    return $self->_parse_module_index( $packages, $file_ls );
 }
 
 #--------------------------------------------------------------------------#
@@ -297,7 +256,6 @@ sub _parse_module_index {
         $mirror{ $latest_dev{$name}{base_id} } = $latest_dev{$name}{datetime} 
     }
 
-#    return [ sort { $mirror{$b} <=> $mirror{$a} } keys %mirror ];
     return [ sort keys %mirror ];
 }
 

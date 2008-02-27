@@ -1,4 +1,5 @@
 use Test::More;
+use lib 'lib';
 
 my $min_tpc = 1.08;
 eval "use Test::Pod::Coverage $min_tpc";
