@@ -2,7 +2,7 @@ NAME
     CPAN::Mini::Devel - Create CPAN::Mini mirror with developer releases
 
 VERSION
-    This documentation describes version 0.01.
+    This documentation describes version 0.02.
 
 SYNOPSIS
          $ minicpan -c CPAN::Mini::Devel

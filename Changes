@@ -1,5 +1,10 @@
 Revision history for Perl module CPAN::Mini::Devel
 
+0.02 Thu Feb 28 07:51:37 EST 2008
+
+    - Bug fix: paths to mirror weren't being specified properly and
+      were always failing with 404 errors
+    
 0.01 Wed Feb 27 09:57:14 EST 2008
 
     - initial release -- no guarantees that it works as promised

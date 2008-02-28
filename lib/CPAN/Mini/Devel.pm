@@ -2,7 +2,7 @@ package CPAN::Mini::Devel;
 use 5.006;
 use strict;
 use warnings;
-our $VERSION = '0.01'; 
+our $VERSION = '0.02'; 
 $VERSION = eval $VERSION; ## no critic
 
 use Config;
@@ -256,7 +256,10 @@ sub _parse_module_index {
         $mirror{ $latest_dev{$name}{base_id} } = $latest_dev{$name}{datetime} 
     }
 
-    return [ sort keys %mirror ];
+    my $mirror_list =
+        [ sort map { s{^(((.).).+)$}{authors/id/$3/$2/$1}; $_ } keys %mirror ];
+
+    return $mirror_list;
 }
 
 1; #modules must return true
