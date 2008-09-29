@@ -1,8 +1,13 @@
-# scratch files from testing if left around
-^t/dot-cpan
-^t/dot-cpanreporter
+# private testing scripts
+^private
+
+# .pm files that just generate wikidoc with no code
+^lib/CPAN/Reporter/API.pm$
+^lib/CPAN/Reporter/FAQ.pm$
 
 # Version control files and dirs.
+.git/
+.gitignore
 \bRCS\b
 \bCVS\b
 ,v$
