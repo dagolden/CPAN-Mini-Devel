@@ -2,7 +2,7 @@ package CPAN::Mini::Devel;
 use 5.006;
 use strict;
 use warnings;
-our $VERSION = '0.02'; 
+our $VERSION = '0.03'; 
 $VERSION = eval $VERSION; ## no critic
 
 use Config;
@@ -90,7 +90,7 @@ my %re = (
 		| /perl-?5\.004 
 		| /perl_mlb\.zip 
     )}xi,
-    archive => qr{\.(?:tar\.(?:bz2|gz|Z)|t(?:gz|bz)|zip|pm.gz)$}i,
+    archive => qr{\.(?:tar\.(?:bz2|gz|Z)|t(?:gz|bz)|(?<!ppm\.)zip|pm.gz)$}i,
     target_dir => qr{
         ^(?:
             modules/by-module/[^/]+/./../ | 
