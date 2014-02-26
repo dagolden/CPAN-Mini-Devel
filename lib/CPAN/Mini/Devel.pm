@@ -265,8 +265,8 @@ sub _parse_module_index {
     }
 
     my $mirror_list =
-      [ sort map { s{^(((.).).+)$}{authors/id/$3/$2/$1}; $_ } keys %mirror ]
-      ; ## no critic
+      [ sort map { s{^(((.).).+)$}{authors/id/$3/$2/$1}; $_ } keys %mirror ] ## no critic
+      ;
 
     return $mirror_list;
 }
