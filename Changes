@@ -1,5 +1,13 @@
 Revision history for Perl module CPAN::Mini::Devel
 
+{{$NEXT}}
+
+    [CHANGES]
+
+    - Updated distribution metadata, repository, bugtracker, etc.
+
+    - Changed to managing distribution with Dist::Zilla
+
 0.03 Mon Sep 29 12:27:10 EDT 2008
 
     - Bug fix: don't mirror .ppm.zip files

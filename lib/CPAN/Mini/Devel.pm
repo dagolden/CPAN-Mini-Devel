@@ -1,13 +1,14 @@
-package CPAN::Mini::Devel;
 use 5.006;
 use strict;
 use warnings;
-our $VERSION = '0.03'; 
-$VERSION = eval $VERSION; ## no critic
+
+package CPAN::Mini::Devel;
+# ABSTRACT: 
+# VERSION - Create CPAN::Mini mirror with developer releases
 
 use Config;
-use CPAN::Mini;
-use CPAN (); 
+use CPAN::Mini 0.567;
+use CPAN 1.92 (); 
 use CPAN::Tarzip;
 use CPAN::HandleConfig;
 use File::Temp 0.20;
@@ -257,36 +258,22 @@ sub _parse_module_index {
     }
 
     my $mirror_list =
-        [ sort map { s{^(((.).).+)$}{authors/id/$3/$2/$1}; $_ } keys %mirror ];
+        [ sort map { s{^(((.).).+)$}{authors/id/$3/$2/$1}; $_ } keys %mirror ]; ## no critic
 
     return $mirror_list;
 }
 
-1; #modules must return true
+1;
 
 __END__
 
-#--------------------------------------------------------------------------#
-# pod documentation 
-#--------------------------------------------------------------------------#
-
-=begin wikidoc
-
-= NAME
-
-CPAN::Mini::Devel - Create CPAN::Mini mirror with developer releases
-
-= VERSION
-
-This documentation describes version %%VERSION%%.
-
-= SYNOPSIS
+=head1 SYNOPSIS
 
     $ minicpan -c CPAN::Mini::Devel
 
-= DESCRIPTION
+=head1 DESCRIPTION
 
-Normally, [CPAN::Mini] creates a minimal CPAN mirror with the latest version of
+Normally, L<CPAN::Mini> creates a minimal CPAN mirror with the latest version of
 each distribution, but excluding developer releases (those with an underscore
 in the version number, like 0.10_01).  
 
@@ -302,49 +289,16 @@ name already in the normal CPAN packages list.
 There may be errors retrieving very new modules if they are indexed but not
 yet synchronized on the mirror.
 
-CPAN::Mini::Devel also mirrors the {indices/find-ls.gz} file, which is used
+CPAN::Mini::Devel also mirrors the F<indices/find-ls.gz> file, which is used
 to identify developer releases.
 
-= USAGE
+=head1 USAGE
 
-See [Mini::CPAN].
+See L<Mini::CPAN>.
 
-= BUGS
+=head1 SEE ALSO
 
-Please report any bugs or feature using the CPAN Request Tracker.  
-Bugs can be submitted through the web interface at 
-[http://rt.cpan.org/Dist/Display.html?Queue=CPAN-Mini-Devel]
-
-When submitting a bug or request, please include a test-file or a patch to an
-existing test-file that illustrates the bug or desired feature.
-
-= SEE ALSO
-
-* [CPAN::Mini]
-
-= AUTHOR
-
-David A. Golden (DAGOLDEN)
-
-= COPYRIGHT AND LICENSE
-
-Copyright (c) 2008 by David A. Golden
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at 
-[http://www.apache.org/licenses/LICENSE-2.0]
-
-Files produced as output though the use of this software, shall not be
-considered Derivative Works, but shall be considered the original work of the
-Licensor.
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-=end wikidoc
+=for :list
+* L<CPAN::Mini>
 
 =cut
